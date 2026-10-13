@@ -11,9 +11,8 @@
   <!-- Three.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   
-  <!-- MediaPipe Hands CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <!-- MediaPipe Hands CDN (Pinned Version) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js" crossorigin="anonymous"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -29,57 +28,52 @@
       -webkit-user-select: none;
       touch-action: none;
       overflow: hidden;
-      background-color: #0b1120;
+      background-color: #030712;
+      margin: 0;
+      padding: 0;
     }
 
     .font-fun {
       font-family: var(--font-display);
     }
 
-    /* Custom Glassmorphism */
+    /* Glassmorphism Panels */
     .glass-panel {
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+      background: rgba(15, 23, 42, 0.86);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.55);
     }
 
-    .glass-card-light {
-      background: rgba(255, 255, 255, 0.85);
+    .glass-card-compact {
+      background: rgba(15, 23, 42, 0.78);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.6);
-      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.18);
     }
 
-    /* Video Mirror for Natural AR interaction */
-    .mirror-mode {
+    /* Mirror webcam horizontally for natural intuitive interaction */
+    .mirror-webcam {
       transform: scaleX(-1);
+      -webkit-transform: scaleX(-1);
     }
 
-    /* Glowing Animations */
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.15); opacity: 0.4; }
-      100% { transform: scale(0.95); opacity: 0.8; }
+    /* Glow utility */
+    .glow-cyan {
+      box-shadow: 0 0 25px rgba(6, 182, 212, 0.6);
     }
 
-    .pulse-ring {
-      animation: pulse-ring 2s infinite ease-in-out;
+    .glow-emerald {
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
     }
 
-    /* Pinch indicator meter */
-    .pinch-glow {
-      box-shadow: 0 0 25px 6px rgba(56, 189, 248, 0.8);
-    }
-
-    /* Custom Scrollbar for review modal */
+    /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.4);
+      background: rgba(15, 23, 42, 0.5);
     }
     ::-webkit-scrollbar-thumb {
       background: rgba(56, 189, 248, 0.5);
@@ -89,141 +83,135 @@
 </head>
 <body class="relative w-screen h-screen m-0 p-0 overflow-hidden text-white bg-slate-950">
 
-  <!-- ==================== AR VIDEO FEED & 3D CANVAS ==================== -->
-  <div id="ar-viewport" class="absolute inset-0 w-full h-full overflow-hidden bg-gradient-to-b from-slate-900 via-sky-950 to-slate-900">
+  <!-- ==================== AR VIEWPORT (WEBCAM + THREE.JS + 2D CANVAS) ==================== -->
+  <div id="ar-viewport" class="absolute inset-0 w-full h-full overflow-hidden bg-gradient-to-b from-slate-950 via-sky-950 to-slate-950">
+    
     <!-- Mirrored Webcam Video for AR background -->
-    <video id="webcam" class="absolute inset-0 w-full h-full object-cover mirror-mode z-0 transition-opacity duration-700 opacity-0" autoplay playsinline muted></video>
+    <video id="webcam" class="absolute inset-0 w-full h-full object-cover mirror-webcam z-0 transition-opacity duration-500 opacity-0 pointer-events-none" autoplay playsinline muted></video>
     
     <!-- Stylized 3D Background Fallback / Gradient Backdrop when camera is off -->
-    <div id="virtual-bg" class="absolute inset-0 w-full h-full pointer-events-none z-0 transition-opacity duration-700 opacity-100 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900/60 via-slate-900 to-slate-950">
-      <div class="absolute inset-0 bg-grid-pattern opacity-10"></div>
+    <div id="virtual-bg" class="absolute inset-0 w-full h-full pointer-events-none z-0 transition-opacity duration-700 opacity-100 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-900/40 via-slate-900 to-slate-950">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#38bdf8 1px, transparent 1px); background-size: 32px 32px;"></div>
     </div>
 
-    <!-- Three.js 3D WebGL Layer -->
+    <!-- Three.js 3D WebGL Layer (Balloons, 3D AR Pointer, Confetti) -->
     <canvas id="three-canvas" class="absolute inset-0 w-full h-full z-10 block pointer-events-auto cursor-pointer"></canvas>
 
-    <!-- 2D AR Hand Tracking & Reticle Canvas -->
+    <!-- 2D AR Hand Tracking & Neon Skeleton Canvas -->
     <canvas id="hand-canvas" class="absolute inset-0 w-full h-full z-20 pointer-events-none"></canvas>
   </div>
 
   <!-- ==================== GAME HUD (HEAD-UP DISPLAY) ==================== -->
-  <div id="game-hud" class="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-3 sm:p-6 transition-opacity duration-300">
+  <div id="game-hud" class="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-2.5 sm:p-5 transition-opacity duration-300">
     
-    <!-- Top HUD Bar -->
-    <div class="flex items-start justify-between gap-3 w-full pointer-events-auto">
+    <!-- Top HUD Container -->
+    <div class="w-full flex flex-col gap-2 pointer-events-auto">
       
-      <!-- Brand & Level Indicator -->
-      <div class="flex flex-col gap-1.5">
-        <div class="glass-panel rounded-2xl px-4 py-2.5 flex items-center gap-3 border border-emerald-400/30">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-300 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/30 font-fun font-bold">
-            🥗
-          </div>
-          <div>
-            <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
-              <span>Sains Rendah & Menengah</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+      <!-- Upper Navigation & Stats Bar -->
+      <div class="flex items-center justify-between gap-2 w-full">
+        
+        <!-- Left: Brand & Question Step Dots -->
+        <div class="flex items-center gap-2.5">
+          <div class="glass-panel rounded-2xl px-3 py-1.5 flex items-center gap-2 border border-emerald-400/30">
+            <span class="text-xl">🥗</span>
+            <div>
+              <div class="text-[9px] uppercase font-bold text-emerald-300 tracking-wider">Sains AR</div>
+              <h1 class="text-xs sm:text-sm font-fun font-bold text-white tracking-wide flex items-center gap-1.5">
+                Piramid Makanan
+                <span id="badge-level" class="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  Aras 1
+                </span>
+              </h1>
             </div>
-            <h1 class="text-base sm:text-lg font-fun font-bold text-white tracking-wide flex items-center gap-2">
-              Piramid Makanan AR
-              <span id="badge-level" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">
-                Aras 1
-              </span>
-            </h1>
+          </div>
+
+          <!-- Step Indicators -->
+          <div class="hidden sm:flex items-center gap-1 bg-slate-900/80 px-2.5 py-2 rounded-xl border border-slate-800">
+            <div id="dot-1" class="w-5 h-2 rounded-full bg-emerald-400 transition-all"></div>
+            <div id="dot-2" class="w-5 h-2 rounded-full bg-slate-700 transition-all"></div>
+            <div id="dot-3" class="w-5 h-2 rounded-full bg-slate-700 transition-all"></div>
+            <div id="dot-4" class="w-5 h-2 rounded-full bg-slate-700 transition-all"></div>
+            <div id="dot-5" class="w-5 h-2 rounded-full bg-slate-700 transition-all"></div>
           </div>
         </div>
 
-        <!-- Question Step Dots -->
-        <div class="flex items-center gap-1.5 px-2">
-          <div id="dot-1" class="w-7 h-2 rounded-full bg-emerald-400 transition-all duration-300"></div>
-          <div id="dot-2" class="w-7 h-2 rounded-full bg-slate-700 transition-all duration-300"></div>
-          <div id="dot-3" class="w-7 h-2 rounded-full bg-slate-700 transition-all duration-300"></div>
-          <div id="dot-4" class="w-7 h-2 rounded-full bg-slate-700 transition-all duration-300"></div>
-          <div id="dot-5" class="w-7 h-2 rounded-full bg-slate-700 transition-all duration-300"></div>
-        </div>
-      </div>
-
-      <!-- Center Status / Feedback Indicator -->
-      <div class="hidden md:flex flex-col items-center">
-        <div id="hud-tracking-pill" class="glass-panel px-4 py-1.5 rounded-full text-xs font-semibold text-slate-300 flex items-center gap-2 border border-slate-700">
-          <span id="tracking-status-light" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-          <span id="tracking-status-text">Memulakan Kamera & Gestur...</span>
-        </div>
-        <div class="text-[11px] text-slate-400 mt-1 font-medium text-center">
-          Tuding Jari Telunjuk atau Cubit (Pinch) untuk Meletupkan Belon
-        </div>
-      </div>
-
-      <!-- Right HUD: Score & Controls -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <!-- Score Card -->
-        <div class="glass-panel rounded-2xl px-4 py-2 flex items-center gap-3 border border-amber-400/30">
-          <div class="text-right">
-            <span class="block text-[10px] uppercase font-bold text-amber-300 tracking-wider">Markah</span>
-            <span id="hud-score" class="font-fun text-xl sm:text-2xl font-bold text-amber-400 leading-none">0</span>
+        <!-- Center: Live AR Hand Detection Pill -->
+        <div class="flex items-center">
+          <div id="hud-tracking-pill" class="glass-panel px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-300 flex items-center gap-2 border border-slate-700 shadow-md">
+            <span id="tracking-status-light" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span id="tracking-status-text">Memeriksa Kamera & AI...</span>
           </div>
-          <div class="text-2xl">⭐</div>
         </div>
 
-        <!-- Camera / AR Toggle Button -->
-        <button id="btn-toggle-cam" class="w-11 h-11 rounded-2xl glass-panel border border-slate-700 hover:border-sky-400 flex items-center justify-center text-lg text-slate-200 hover:text-sky-300 transition-all active:scale-95 shadow-md" title="Buka/Tutup Kamera AR">
-          📹
-        </button>
+        <!-- Right: Score & Control Icons -->
+        <div class="flex items-center gap-2">
+          <!-- Score Badge -->
+          <div class="glass-panel rounded-2xl px-3 py-1.5 flex items-center gap-2 border border-amber-400/30">
+            <div class="text-right">
+              <span class="block text-[8px] uppercase font-bold text-amber-300 tracking-wider">Markah</span>
+              <span id="hud-score" class="font-fun text-lg sm:text-xl font-bold text-amber-400 leading-none">0</span>
+            </div>
+            <span class="text-lg">⭐</span>
+          </div>
 
-        <!-- Sound Toggle Button -->
-        <button id="btn-toggle-sound" class="w-11 h-11 rounded-2xl glass-panel border border-slate-700 hover:border-amber-400 flex items-center justify-center text-lg text-slate-200 hover:text-amber-300 transition-all active:scale-95 shadow-md" title="Kawal Bunyi">
-          🔊
-        </button>
+          <!-- Camera Toggle Button -->
+          <button id="btn-toggle-cam" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl glass-panel border border-slate-700 hover:border-sky-400 flex items-center justify-center text-base text-slate-200 hover:text-sky-300 transition-all active:scale-95 shadow-md" title="Buka/Tutup Kamera AR">
+            📹
+          </button>
 
-        <!-- Guide Button -->
-        <button id="btn-show-guide" class="w-11 h-11 rounded-2xl glass-panel border border-slate-700 hover:border-emerald-400 flex items-center justify-center text-lg text-slate-200 hover:text-emerald-300 transition-all active:scale-95 shadow-md" title="Info Piramid Makanan">
-          ℹ️
-        </button>
+          <!-- Diagnostic Button -->
+          <button id="btn-show-diag" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl glass-panel border border-slate-700 hover:border-amber-400 flex items-center justify-center text-sm sm:text-base text-slate-200 hover:text-amber-300 transition-all active:scale-95 shadow-md" title="Papan Diagnostik AR">
+            ⚙️
+          </button>
+
+          <!-- Sound Toggle Button -->
+          <button id="btn-toggle-sound" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl glass-panel border border-slate-700 hover:border-emerald-400 flex items-center justify-center text-base text-slate-200 hover:text-emerald-300 transition-all active:scale-95 shadow-md" title="Kawal Bunyi">
+            🔊
+          </button>
+
+          <!-- Guide Button -->
+          <button id="btn-show-guide" class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl glass-panel border border-slate-700 hover:border-teal-400 flex items-center justify-center text-base text-slate-200 hover:text-teal-300 transition-all active:scale-95 shadow-md" title="Info Piramid Makanan">
+            ℹ️
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Question Banner (Docked at Top to leave center 3D field 100% open for balloons & hand!) -->
+      <div class="w-full max-w-4xl mx-auto pointer-events-auto">
+        <div class="glass-card-compact rounded-2xl px-4 py-2.5 sm:px-6 sm:py-3.5 border border-white/20 shadow-xl relative overflow-hidden backdrop-blur-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span id="question-category" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+              🌾 Aras 1: Karbohidrat & Tenaga
+            </span>
+            <span id="question-number" class="text-[10px] sm:text-xs font-semibold text-slate-300 bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-700">
+              Soalan 1 / 5
+            </span>
+          </div>
+
+          <h2 id="question-text" class="text-sm sm:text-base md:text-lg font-fun font-bold text-white tracking-wide leading-snug drop-shadow-md">
+            Manakah kumpulan makanan yang terletak pada Aras 1 (Dasar Piramid) dan perlu diambil dalam kuantiti mencukupi sebagai sumber tenaga utama?
+          </h2>
+        </div>
       </div>
 
     </div>
 
-    <!-- Center Question Display Panel -->
-    <div class="w-full max-w-3xl mx-auto pointer-events-auto my-auto pt-2 pb-6">
-      <div class="glass-panel rounded-3xl p-4 sm:p-6 border border-white/20 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        <!-- Top decorative glow -->
-        <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-72 h-16 bg-sky-400/20 blur-2xl rounded-full pointer-events-none"></div>
-
-        <div class="flex items-center justify-between mb-2">
-          <span id="question-category" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-            🌾 Aras 1: Karbohidrat & Tenaga
-          </span>
-          <span id="question-number" class="text-xs sm:text-sm font-semibold text-slate-300 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
-            Soalan 1 daripada 5
-          </span>
-        </div>
-
-        <h2 id="question-text" class="text-lg sm:text-2xl font-fun font-bold text-white tracking-wide leading-snug sm:leading-relaxed text-center sm:text-left drop-shadow-md">
-          Manakah kumpulan makanan yang terletak pada Aras 1 (Dasar Piramid) dan perlu diambil dalam kuantiti mencukupi sebagai sumber tenaga utama?
-        </h2>
-
-        <div class="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-700/60 pt-2.5">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-            <span>Letupkan belon 3D mengikut pilihan jawapan: <strong>A, B, C,</strong> atau <strong>D</strong></span>
-          </div>
-          <span id="interaction-tip" class="hidden sm:inline-block text-sky-300 font-medium">
-            🎯 Sasarkan Jari / Cubit (Pinch) / Klik
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom Status / Hint Bar -->
-    <div class="flex items-center justify-between w-full pointer-events-auto text-xs text-slate-400 px-2 pb-1">
-      <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800">
-        <span class="text-base">🖐️</span>
-        <span id="hand-indicator-text">Kamera sedia: Angkat tangan menghadap skrin</span>
+    <!-- Bottom HUD Bar: Instructions & Live Detection Telemetry -->
+    <div class="flex items-center justify-between w-full pointer-events-auto text-xs text-slate-400 px-1 pb-1">
+      <div class="flex items-center gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 shadow-md">
+        <span id="hand-icon" class="text-base">🖐️</span>
+        <span id="hand-indicator-text">Sedia: Tuding jari telunjuk pada belon pilihan, atau klik terus dengan tetikus</span>
       </div>
 
       <div class="flex items-center gap-2">
-        <button id="btn-mouse-mode" class="bg-slate-900/80 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95">
+        <button id="btn-cam-retry" class="hidden bg-sky-950 hover:bg-sky-900 text-sky-300 px-3 py-1.5 rounded-xl border border-sky-700 transition-all items-center gap-1.5 text-xs font-semibold active:scale-95 shadow">
+          <span>🔄</span>
+          <span>Aktifkan Semula Kamera</span>
+        </button>
+        <button id="btn-mouse-mode" class="bg-slate-900/90 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 active:scale-95">
           <span>🖱️</span>
-          <span>Boleh Klik Terus Jika Tanpa Kamera</span>
+          <span>Boleh Klik / Sentuh Pada Bila-bila Masa</span>
         </button>
       </div>
     </div>
@@ -232,10 +220,10 @@
 
   <!-- ==================== EXPLANATION & FEEDBACK POPUP ==================== -->
   <div id="feedback-modal" class="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
-    <div id="feedback-card" class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 border transform scale-95 transition-all duration-300 text-center relative overflow-hidden">
+    <div id="feedback-card" class="glass-panel w-full max-w-lg rounded-3xl p-5 sm:p-7 border transform scale-95 transition-all duration-300 text-center relative overflow-hidden">
       
       <!-- Feedback Icon / Badge -->
-      <div id="feedback-icon-container" class="w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-4xl mb-4 shadow-xl border">
+      <div id="feedback-icon-container" class="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl flex items-center justify-center text-3xl sm:text-4xl mb-3 sm:mb-4 shadow-xl border">
         🎉
       </div>
 
@@ -243,20 +231,20 @@
         Jawapan Tepat! (+100 Markah)
       </div>
 
-      <h3 id="feedback-title" class="font-fun text-2xl font-bold text-white mb-3">
+      <h3 id="feedback-title" class="font-fun text-xl sm:text-2xl font-bold text-white mb-3">
         Hebat! Anda Memilih Jawapan Yang Benar
       </h3>
 
-      <div class="bg-slate-900/80 rounded-2xl p-4 text-left border border-slate-800 mb-6">
+      <div class="bg-slate-900/80 rounded-2xl p-4 text-left border border-slate-800 mb-5">
         <div class="text-xs font-bold text-sky-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
           <span>🔬 Fakta Sains Piramid Makanan</span>
         </div>
-        <p id="feedback-explanation" class="text-sm text-slate-300 leading-relaxed">
+        <p id="feedback-explanation" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
           Kumpulan makanan di Aras 1 seperti nasi, roti, bijirin, dan ubi membekalkan karbohidrat kompleks sebagai sumber tenaga utama tubuh manusia bagi menjalankan aktiviti harian.
         </p>
       </div>
 
-      <button id="btn-next-question" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-lg font-bold shadow-lg shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
+      <button id="btn-next-question" class="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-base sm:text-lg font-bold shadow-lg shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
         <span>Soalan Seterusnya</span>
         <span>➔</span>
       </button>
@@ -265,14 +253,14 @@
   </div>
 
   <!-- ==================== INTRO / START SCREEN ==================== -->
-  <div id="start-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4">
+  <div id="start-modal" class="fixed inset-0 z-50 bg-slate-950/92 backdrop-blur-xl flex items-center justify-center p-4">
     <div class="glass-panel w-full max-w-xl rounded-3xl p-6 sm:p-8 border border-white/20 text-center relative overflow-hidden shadow-2xl">
       
       <!-- Top Glow -->
       <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-32 bg-emerald-500/20 blur-3xl rounded-full"></div>
 
       <!-- Icon & Title -->
-      <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-400 to-sky-400 mx-auto flex items-center justify-center text-4xl shadow-lg shadow-emerald-500/30 mb-4 border border-white/30">
+      <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-emerald-400 to-sky-400 mx-auto flex items-center justify-center text-3xl sm:text-4xl shadow-lg shadow-emerald-500/30 mb-3 sm:mb-4 border border-white/30">
         🎈
       </div>
 
@@ -280,59 +268,106 @@
         Sains & Kesihatan Interaktif (AR)
       </span>
 
-      <h1 class="font-fun text-3xl sm:text-4xl font-bold text-white tracking-wide mb-3">
+      <h1 class="font-fun text-2xl sm:text-4xl font-bold text-white tracking-wide mb-2 sm:mb-3">
         Piramid Makanan AR
       </h1>
-      <p class="text-sm text-slate-300 mb-6 max-w-md mx-auto leading-relaxed">
-        Uji pengetahuan anda tentang pemakanan sihat dengan meletupkan belon 3D menggunakan <strong>kamera gestur tangan AR</strong> atau <strong>tetikus/skrin sentuh</strong>!
+      <p class="text-xs sm:text-sm text-slate-300 mb-5 max-w-md mx-auto leading-relaxed">
+        Uji pengetahuan pemakanan sihat dengan meletupkan belon 3D menggunakan <strong>kamera gestur tangan AR</strong> atau <strong>tetikus/skrin sentuh</strong>!
       </p>
 
       <!-- 2 Ways to Play Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6">
-        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-5">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between">
           <div>
             <div class="text-2xl mb-1">🖐️</div>
             <div class="text-sm font-bold text-white">Kawalan Gestur AR</div>
             <p class="text-xs text-slate-400 mt-1">
-              Benarkan akses kamera. Tuding jari telunjuk ke arah belon pilihan, atau buat isyarat cubit (pinch) untuk letupkan belon!
+              Benarkan capaian webcam. Tuding jari telunjuk pada belon pilihan, atau buat isyarat cubit (pinch) untuk letupkan belon!
             </p>
           </div>
-          <span class="inline-block mt-3 text-[11px] font-semibold text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-800/40 w-fit">Disyorkan</span>
+          <span class="inline-block mt-2.5 text-[10px] font-semibold text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-800/40 w-fit">Pengalaman AR</span>
         </div>
 
-        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between">
           <div>
             <div class="text-2xl mb-1">🖱️</div>
-            <div class="text-sm font-bold text-white">Sentuh / Tetikus</div>
+            <div class="text-sm font-bold text-white">Sentuh & Tetikus</div>
             <p class="text-xs text-slate-400 mt-1">
-              Tiada kamera atau pencahayaan malap? Anda boleh klik atau sentuh terus pada belon 3D pada bila-bila masa.
+              Jika tiada webcam atau persekitaran malap, anda boleh klik atau sentuh terus belon pada bila-bila masa.
             </p>
           </div>
-          <span class="inline-block mt-3 text-[11px] font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/40 w-fit">Sentiasa Aktif</span>
+          <span class="inline-block mt-2.5 text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/40 w-fit">Sentiasa Sedia</span>
         </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row gap-3">
-        <button id="btn-start-game" class="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-lg font-bold shadow-xl shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <button id="btn-start-game" class="flex-1 py-3.5 sm:py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-base sm:text-lg font-bold shadow-xl shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
           <span>🚀 Mula Bermain Sekarang</span>
         </button>
       </div>
 
-      <div class="mt-4 text-[11px] text-slate-500">
-        MediaPipe Hands & Three.js 3D Powered • Standalone WebApp
+      <div class="mt-3.5 text-[11px] text-slate-500">
+        Three.js 3D & MediaPipe Hands • Single Page Application
       </div>
 
     </div>
   </div>
 
-  <!-- ==================== FINAL RESULTS / SUMMARY SCREEN ==================== -->
+  <!-- ==================== DIAGNOSTIC & AR TROUBLESHOOTING MODAL ==================== -->
+  <div id="diag-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-panel w-full max-w-lg rounded-3xl p-5 sm:p-7 border border-white/20 text-left relative shadow-2xl">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+        <h3 class="font-fun text-lg font-bold text-white flex items-center gap-2">
+          <span>🛠️</span> Status Diagnostik AR & Kamera
+        </h3>
+        <button id="btn-close-diag" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-sm font-bold">✕</button>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Protokol Web</span>
+          <span id="diag-protocol" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300">Memeriksa...</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Akses Webcam (getUserMedia)</span>
+          <span id="diag-getusermedia" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300">Memeriksa...</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Status Aliran Kamera</span>
+          <span id="diag-camera-status" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300">Belum diaktifkan</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Pustaka MediaPipe AI</span>
+          <span id="diag-mediapipe" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-sky-300">Memeriksa...</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Resolusi Video & FPS</span>
+          <span id="diag-video-dim" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Tiada suapan</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800">
+          <span class="text-slate-400">Pengesanan Tangan Terkini</span>
+          <span id="diag-hand-count" class="font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Tiada tangan</span>
+        </div>
+      </div>
+
+      <div class="mt-4 flex gap-2">
+        <button id="btn-diag-retry" class="flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center gap-1.5">
+          <span>🔄 Mulakan Semula Kamera</span>
+        </button>
+        <button id="btn-diag-ok" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FINAL RESULTS SCREEN ==================== -->
   <div id="results-modal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-500">
-    <div class="glass-panel w-full max-w-2xl max-h-[90vh] rounded-3xl p-6 sm:p-8 border border-white/20 text-center relative flex flex-col shadow-2xl overflow-hidden">
+    <div class="glass-panel w-full max-w-2xl max-h-[90vh] rounded-3xl p-5 sm:p-7 border border-white/20 text-center relative flex flex-col shadow-2xl overflow-hidden">
       
       <div class="overflow-y-auto pr-1">
-        <!-- Badge & Trophy -->
-        <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-400 to-yellow-300 mx-auto flex items-center justify-center text-4xl shadow-xl shadow-amber-500/30 mb-4 border border-white/40">
+        <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-400 to-yellow-300 mx-auto flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-amber-500/30 mb-3 border border-white/40">
           🏆
         </div>
 
@@ -340,56 +375,54 @@
           Tahniah! Permainan Tamat
         </span>
 
-        <h2 class="font-fun text-3xl font-bold text-white mb-2">
+        <h2 class="font-fun text-2xl sm:text-3xl font-bold text-white mb-2">
           Keputusan Ujian Piramid Makanan
         </h2>
 
-        <!-- Score summary cards -->
-        <div class="grid grid-cols-3 gap-3 my-5">
-          <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
-            <span class="block text-[11px] uppercase font-bold text-slate-400">Jumlah Skor</span>
-            <span id="final-score" class="font-fun text-2xl sm:text-3xl font-bold text-amber-400">500</span>
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 my-4">
+          <div class="bg-slate-900/80 rounded-2xl p-2.5 sm:p-3 border border-slate-800">
+            <span class="block text-[10px] sm:text-[11px] uppercase font-bold text-slate-400">Jumlah Skor</span>
+            <span id="final-score" class="font-fun text-xl sm:text-3xl font-bold text-amber-400">500</span>
           </div>
-          <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
-            <span class="block text-[11px] uppercase font-bold text-slate-400">Ketepatan</span>
-            <span id="final-accuracy" class="font-fun text-2xl sm:text-3xl font-bold text-emerald-400">100%</span>
+          <div class="bg-slate-900/80 rounded-2xl p-2.5 sm:p-3 border border-slate-800">
+            <span class="block text-[10px] sm:text-[11px] uppercase font-bold text-slate-400">Ketepatan</span>
+            <span id="final-accuracy" class="font-fun text-xl sm:text-3xl font-bold text-emerald-400">100%</span>
           </div>
-          <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-800">
-            <span class="block text-[11px] uppercase font-bold text-slate-400">Gred Nutrisi</span>
-            <span id="final-rank" class="font-fun text-2xl sm:text-3xl font-bold text-sky-400">Pakar</span>
+          <div class="bg-slate-900/80 rounded-2xl p-2.5 sm:p-3 border border-slate-800">
+            <span class="block text-[10px] sm:text-[11px] uppercase font-bold text-slate-400">Gred Nutrisi</span>
+            <span id="final-rank" class="font-fun text-xl sm:text-3xl font-bold text-sky-400">Pakar</span>
           </div>
         </div>
 
-        <!-- Science Takeaway List -->
-        <div class="text-left bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-800 mb-6">
+        <div class="text-left bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-800 mb-5">
           <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300 mb-3 flex items-center gap-2">
-            <span>🥗 Rumusan Pembelajaran Sains: Piramid Makanan Malaysia</span>
+            <span>🥗 Rumusan Sains: Piramid Makanan Malaysia</span>
           </h4>
-          <div class="space-y-3 text-xs sm:text-sm text-slate-300">
-            <div class="flex items-start gap-2.5">
-              <span class="text-emerald-400 font-bold">1. Aras 1 (Dasar):</span>
+          <div class="space-y-2 text-xs sm:text-sm text-slate-300">
+            <div class="flex items-start gap-2">
+              <span class="text-emerald-400 font-bold shrink-0">1. Aras 1:</span>
               <span>Karbohidrat (nasi, mi, roti, bijirin) – Sumber tenaga utama badan.</span>
             </div>
-            <div class="flex items-start gap-2.5">
-              <span class="text-sky-400 font-bold">2. Aras 2:</span>
-              <span>Sayur-sayuran & Buah-buahan – Kaya serat, vitamin, dan mineral (≥ 5 sajian sehari).</span>
+            <div class="flex items-start gap-2">
+              <span class="text-sky-400 font-bold shrink-0">2. Aras 2:</span>
+              <span>Sayur & Buah – Kaya serat, vitamin & mineral pembina imun (≥ 5 sajian/hari).</span>
             </div>
-            <div class="flex items-start gap-2.5">
-              <span class="text-indigo-400 font-bold">3. Aras 3:</span>
-              <span>Protein & Tenusu (ikan, ayam, telur, kekacang, susu) – Membina otot dan tisu serta kuatkan tulang.</span>
+            <div class="flex items-start gap-2">
+              <span class="text-indigo-400 font-bold shrink-0">3. Aras 3:</span>
+              <span>Protein & Tenusu (ikan, ayam, telur, susu) – Membina otot & membaiki sel rosak.</span>
             </div>
-            <div class="flex items-start gap-2.5">
-              <span class="text-rose-400 font-bold">4. Aras 4 (Puncak):</span>
-              <span>Lemak, minyak, gula, garam – Ambil paling sedikit untuk cegah penyakit kronik.</span>
+            <div class="flex items-start gap-2">
+              <span class="text-rose-400 font-bold shrink-0">4. Aras 4:</span>
+              <span>Lemak, minyak, gula, garam – Ambil paling sedikit/berpada-pada.</span>
             </div>
-            <div class="flex items-start gap-2.5">
-              <span class="text-amber-400 font-bold">5. Pinggan Sihat:</span>
-              <span>Konsep <strong>#SukuSukuSeparuh</strong>: 1/4 Karbohidrat, 1/4 Protein, 1/2 Buah & Sayur.</span>
+            <div class="flex items-start gap-2">
+              <span class="text-amber-400 font-bold shrink-0">5. Pinggan Sihat:</span>
+              <span>Konsep <strong>#SukuSukuSeparuh</strong>: 1/4 Karbohidrat, 1/4 Protein, 1/2 Sayur & Buah.</span>
             </div>
           </div>
         </div>
 
-        <button id="btn-restart-game" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-lg font-bold shadow-xl shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
+        <button id="btn-restart-game" class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-slate-950 font-fun text-base sm:text-lg font-bold shadow-xl shadow-teal-500/25 transition-all active:scale-95 flex items-center justify-center gap-2">
           <span>🔄 Main Semula</span>
         </button>
       </div>
@@ -399,39 +432,39 @@
 
   <!-- ==================== PIRAMID MAKANAN INFO GUIDE MODAL ==================== -->
   <div id="guide-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
-    <div class="glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-white/20 text-left relative shadow-2xl max-h-[85vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="font-fun text-xl font-bold text-white flex items-center gap-2">
+    <div class="glass-panel w-full max-w-lg rounded-3xl p-5 sm:p-7 border border-white/20 text-left relative shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+        <h3 class="font-fun text-lg font-bold text-white flex items-center gap-2">
           <span>📖</span> Panduan Sains Piramid Makanan
         </h3>
         <button id="btn-close-guide" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-sm font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-slate-300 mb-4 leading-relaxed">
-        Piramid Makanan Malaysia membahagikan kumpulan makanan kepada 4 aras piramid mengikut kuantiti yang perlu dimakan setiap hari:
+      <p class="text-xs text-slate-300 mb-3 leading-relaxed">
+        Piramid Makanan Malaysia (KKM) membahagikan kumpulan makanan kepada 4 aras keutamaan harian:
       </p>
 
-      <div class="space-y-3 text-xs">
-        <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
+      <div class="space-y-2 text-xs">
+        <div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
           <div class="font-bold text-rose-300 text-sm">Aras 4: Puncak Piramid (Makan Paling Sedikit)</div>
-          <div class="text-slate-300 mt-1">Lemak, minyak, gula dan garam. Ambil dalam kuantiti yang terhad.</div>
+          <div class="text-slate-300 mt-0.5">Lemak, minyak, gula dan garam. Ambil dalam kuantiti yang terhad untuk mencegah penyakit kronik.</div>
         </div>
-        <div class="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
+        <div class="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30">
           <div class="font-bold text-purple-300 text-sm">Aras 3: Tengah Atas (Makan Sederhana)</div>
-          <div class="text-slate-300 mt-1">Ikan, ayam, daging, telur, kekacang (1-2 sajian) dan susu/produk tenusu (2 sajian) untuk protein dan kalsium.</div>
+          <div class="text-slate-300 mt-0.5">Ikan, ayam, daging, telur, kekacang (1-2 sajian) dan susu/tenusu (2 sajian) untuk protein dan kalsium pembina sel.</div>
         </div>
-        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+        <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
           <div class="font-bold text-emerald-300 text-sm">Aras 2: Tengah Bawah (Makan Banyak)</div>
-          <div class="text-slate-300 mt-1">Sayur-sayuran (≥ 3 sajian) dan buah-buahan (2 sajian). Sumber utama vitamin, mineral dan serat pelindung penyakit.</div>
+          <div class="text-slate-300 mt-0.5">Sayur-sayuran (≥ 3 sajian) dan buah-buahan (2 sajian). Sumber utama vitamin, mineral dan serat pelindung penyakit.</div>
         </div>
-        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+        <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
           <div class="font-bold text-amber-300 text-sm">Aras 1: Dasar Piramid (Makan Mencukupi)</div>
-          <div class="text-slate-300 mt-1">Nasi, mi, roti, bijirin dan produk ubi-ubian (3-5 sajian). Pembekal karbohidrat utama tubuh.</div>
+          <div class="text-slate-300 mt-0.5">Nasi, mi, roti, bijirin dan ubi-ubian (3-5 sajian). Pembekal karbohidrat utama tubuh.</div>
         </div>
       </div>
 
-      <div class="mt-5 pt-4 border-t border-slate-800 text-center">
-        <button id="btn-guide-ok" class="px-6 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs">
+      <div class="mt-4 pt-3 border-t border-slate-800 text-center">
+        <button id="btn-guide-ok" class="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition-all">
           Faham, Teruskan Permainan
         </button>
       </div>
@@ -509,7 +542,7 @@
       }
     ];
 
-    // --- 2. AUDIO SYNTHESIS ENGINE (Web Audio API - Standalone) ---
+    // --- 2. AUDIO SYNTHESIS ENGINE ---
     class SoundFX {
       constructor() {
         this.ctx = null;
@@ -533,12 +566,10 @@
         return this.enabled;
       }
 
-      // Realistic Balloon Pop Sound (Burst + resonant snap)
       playPop() {
         if (!this.enabled || !this.ctx) return;
         try {
           const now = this.ctx.currentTime;
-          // Noise burst
           const bufferSize = this.ctx.sampleRate * 0.08;
           const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
           const data = buffer.getChannelData(0);
@@ -562,7 +593,6 @@
           gain.connect(this.ctx.destination);
           noise.start(now);
 
-          // Tone snap
           const osc = this.ctx.createOscillator();
           const oscGain = this.ctx.createGain();
           osc.type = 'triangle';
@@ -574,17 +604,14 @@
           oscGain.connect(this.ctx.destination);
           osc.start(now);
           osc.stop(now + 0.08);
-        } catch (e) {
-          console.warn("Audio pop error:", e);
-        }
+        } catch (e) {}
       }
 
-      // Correct Answer Chime (Bright joyful major chord)
       playCorrect() {
         if (!this.enabled || !this.ctx) return;
         try {
           const now = this.ctx.currentTime;
-          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          const notes = [523.25, 659.25, 783.99, 1046.50];
           notes.forEach((freq, idx) => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -597,12 +624,9 @@
             osc.start(now + idx * 0.08);
             osc.stop(now + idx * 0.08 + 0.4);
           });
-        } catch (e) {
-          console.warn("Audio correct error:", e);
-        }
+        } catch (e) {}
       }
 
-      // Wrong Answer Buzzer (Subtle descending low chime)
       playWrong() {
         if (!this.enabled || !this.ctx) return;
         try {
@@ -618,12 +642,9 @@
           gain.connect(this.ctx.destination);
           osc.start(now);
           osc.stop(now + 0.26);
-        } catch (e) {
-          console.warn("Audio wrong error:", e);
-        }
+        } catch (e) {}
       }
 
-      // Victory Fanfare
       playVictory() {
         if (!this.enabled || !this.ctx) return;
         try {
@@ -648,9 +669,7 @@
               osc.stop(now + c.t + 0.65);
             });
           });
-        } catch (e) {
-          console.warn("Audio victory error:", e);
-        }
+        } catch (e) {}
       }
     }
 
@@ -668,33 +687,31 @@
         this.balloons = [];
         this.particles = [];
         this.raycaster = new THREE.Raycaster();
-        this.mouse = new THREE.Vector2(-999, -999);
-        
         this.clock = new THREE.Clock();
+        
         this.hoveredBalloon = null;
         this.hoverTimer = 0;
-        this.hoverDurationNeeded = 0.55; // 0.55 seconds hover to trigger pop
+        this.hoverDurationNeeded = 0.45;
+
+        // 3D Pointer / Energy Orb that tracks hand in 3D scene directly
+        this.arPointerMesh = null;
         
         this.balloonColors = [
-          { bg: 0x10b981, hex: '#10b981', light: 0x6ee7b7, name: 'Hijau (A)' },
-          { bg: 0x0ea5e9, hex: '#0ea5e9', light: 0x7dd3fc, name: 'Biru (B)' },
-          { bg: 0xf59e0b, hex: '#f59e0b', light: 0xfcd34d, name: 'Kuning (C)' },
-          { bg: 0xec4899, hex: '#ec4899', light: 0xf472b6, name: 'Merah Jambu (D)' }
+          { bg: 0x10b981, hex: '#10b981', name: 'Hijau (A)' },
+          { bg: 0x0ea5e9, hex: '#0ea5e9', name: 'Biru (B)' },
+          { bg: 0xf59e0b, hex: '#f59e0b', name: 'Kuning (C)' },
+          { bg: 0xec4899, hex: '#ec4899', name: 'Merah Jambu (D)' }
         ];
 
         this.init();
       }
 
       init() {
-        // Scene setup
         this.scene = new THREE.Scene();
-
-        // Camera setup (Perspective matching field of view)
         const aspect = window.innerWidth / window.innerHeight;
-        this.camera = new THREE.PerspectiveCamera(58, aspect, 0.1, 100);
-        this.camera.position.set(0, 0, 7.5);
+        this.camera = new THREE.PerspectiveCamera(54, aspect, 0.1, 100);
+        this.camera.position.set(0, 0, 7.8);
 
-        // WebGL Renderer with Alpha: true for AR webcam transparency
         this.renderer = new THREE.WebGLRenderer({
           canvas: this.canvas,
           alpha: true,
@@ -703,28 +720,43 @@
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
         this.scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
         dirLight.position.set(5, 10, 8);
         this.scene.add(dirLight);
 
-        const backLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
+        const backLight = new THREE.DirectionalLight(0x38bdf8, 0.5);
         backLight.position.set(-5, -5, -4);
         this.scene.add(backLight);
 
-        // Responsive resize
+        // Build 3D AR Pointer (Glowing energy orb in 3D space)
+        const pointerGroup = new THREE.Group();
+        const sphereGeo = new THREE.SphereGeometry(0.18, 20, 20);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.9 });
+        const coreSphere = new THREE.Mesh(sphereGeo, sphereMat);
+        pointerGroup.add(coreSphere);
+
+        const ringGeo = new THREE.RingGeometry(0.28, 0.35, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        pointerGroup.add(ringMesh);
+        pointerGroup.ring = ringMesh;
+
+        pointerGroup.position.set(0, 0, -20);
+        pointerGroup.visible = false;
+        this.scene.add(pointerGroup);
+        this.arPointerMesh = pointerGroup;
+
         window.addEventListener('resize', () => this.onWindowResize());
 
-        // Mouse / Touch interaction on Three.js canvas
+        // Mouse / Touch interaction fallback on canvas
         this.canvas.addEventListener('pointerdown', (e) => this.onCanvasPointerDown(e));
         this.canvas.addEventListener('pointermove', (e) => this.onCanvasPointerMove(e));
 
-        // Start render loop
         this.animate();
       }
 
@@ -738,8 +770,12 @@
 
       onCanvasPointerMove(e) {
         const rect = this.canvas.getBoundingClientRect();
-        this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+        const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        const normY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        if (window.game && window.game.handTracker && !window.game.handTracker.handPos.isDetected) {
+          window.game.handTracker.setSimulatedPointer(e.clientX, e.clientY);
+        }
       }
 
       onCanvasPointerDown(e) {
@@ -750,42 +786,52 @@
         this.triggerPopAt(x, y);
       }
 
-      // Create High-Definition Text Canvas Texture for the Balloon
+      update3DPointerPosition(normX, normY) {
+        if (!this.arPointerMesh) return;
+        // Project onto z = 0.6 (in front of balloons)
+        const vec = new THREE.Vector3(normX, normY, 0.5);
+        vec.unproject(this.camera);
+        const dir = vec.sub(this.camera.position).normalize();
+        const targetZ = 0.6;
+        const distance = (targetZ - this.camera.position.z) / dir.z;
+        const pos = this.camera.position.clone().add(dir.multiplyScalar(distance));
+        
+        this.arPointerMesh.position.copy(pos);
+        this.arPointerMesh.visible = true;
+      }
+
+      hide3DPointer() {
+        if (this.arPointerMesh) {
+          this.arPointerMesh.visible = false;
+        }
+      }
+
       createBalloonLabelTexture(optionLetter, optionText, colorHex) {
         const canvas = document.createElement('canvas');
         canvas.width = 512;
         canvas.height = 360;
         const ctx = canvas.getContext('2d');
 
-        // Transparent background
         ctx.clearRect(0, 0, 512, 360);
 
-        // Rounded pill badge for Letter (A, B, C, D)
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 16;
-        ctx.shadowOffsetY = 4;
-
+        // Letter circular badge
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(256, 80, 50, 0, Math.PI * 2);
+        ctx.arc(256, 80, 52, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetY = 0;
-
-        // Letter text
         ctx.fillStyle = colorHex;
-        ctx.font = 'bold 58px "Fredoka", sans-serif';
+        ctx.font = 'bold 60px "Fredoka", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(optionLetter, 256, 84);
 
-        // Content Card Box
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        // Text card container
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
         ctx.strokeStyle = colorHex;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 5;
 
-        const bx = 30, by = 150, bw = 452, bh = 180, br = 24;
+        const bx = 28, by = 150, bw = 456, bh = 180, br = 24;
         ctx.beginPath();
         ctx.moveTo(bx + br, by);
         ctx.lineTo(bx + bw - br, by);
@@ -800,13 +846,11 @@
         ctx.fill();
         ctx.stroke();
 
-        // Wrapped Answer text
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = '600 28px "Plus Jakarta Sans", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 28px "Plus Jakarta Sans", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
 
-        // Auto wrap text
         const words = optionText.split(' ');
         let lines = [];
         let currentLine = '';
@@ -823,8 +867,7 @@
         }
         if (currentLine) lines.push(currentLine);
 
-        // Render lines centered
-        const startY = by + 28 + (3 - lines.length) * 12;
+        const startY = by + 26 + (3 - lines.length) * 12;
         lines.forEach((line, i) => {
           ctx.fillText(line, 256, startY + i * 36);
         });
@@ -834,35 +877,30 @@
         return texture;
       }
 
-      // Spawn 4 MCQ Balloons for Current Question
       spawnBalloons(questionData) {
-        // Clear previous balloons & particles
         this.clearBalloons();
 
         const count = questionData.options.length;
         const screenWidth = window.innerWidth;
         const isMobile = screenWidth < 768;
 
-        // Compute 3D Spacing and coordinates
-        // On desktop: 4 balloons side-by-side or arched
-        // On mobile: 2x2 grid layout in 3D
         let positions = [];
         if (!isMobile) {
           const spacing = 3.2;
           const startX = -((count - 1) * spacing) / 2;
           for (let i = 0; i < count; i++) {
             const x = startX + i * spacing;
-            const y = -0.4 + Math.sin(i * 1.2) * 0.3; // subtle natural height stagger
+            const y = -0.5 + Math.sin(i * 1.2) * 0.25;
             const z = 0;
             positions.push({ x, y, z });
           }
         } else {
-          // 2x2 grid for mobile screens
+          // 2x2 grid for mobile
           positions = [
-            { x: -1.7, y: 0.8, z: 0 },
-            { x: 1.7, y: 0.8, z: 0 },
-            { x: -1.7, y: -1.4, z: 0 },
-            { x: 1.7, y: -1.4, z: 0 }
+            { x: -1.6, y: 0.6, z: 0 },
+            { x: 1.6, y: 0.6, z: 0 },
+            { x: -1.6, y: -1.6, z: 0 },
+            { x: 1.6, y: -1.6, z: 0 }
           ];
         }
 
@@ -871,50 +909,48 @@
           const pos = positions[idx];
 
           const balloonGroup = new THREE.Group();
-          balloonGroup.position.set(pos.x, -8, pos.z); // Start below screen for spawn float animation
+          balloonGroup.position.set(pos.x, -8, pos.z);
           balloonGroup.targetY = pos.y;
           balloonGroup.baseY = pos.y;
           balloonGroup.baseX = pos.x;
-          balloonGroup.floatSpeed = 1.2 + idx * 0.3;
+          balloonGroup.floatSpeed = 1.1 + idx * 0.25;
           balloonGroup.floatOffset = idx * 1.5;
           balloonGroup.optionData = opt;
           balloonGroup.colorDef = colorDef;
           balloonGroup.isPopped = false;
 
-          // 1. Balloon Geometry (Elongated egg-like sphere)
-          const sphereGeo = new THREE.SphereGeometry(1.0, 32, 28);
-          // Scale to create natural teardrop balloon silhouette
+          // Balloon Body
+          const sphereGeo = new THREE.SphereGeometry(1.05, 32, 28);
           sphereGeo.scale(1.0, 1.28, 1.0);
 
           const balloonMat = new THREE.MeshStandardMaterial({
             color: colorDef.bg,
-            roughness: 0.18,
-            metalness: 0.08,
+            roughness: 0.16,
+            metalness: 0.1,
             emissive: colorDef.bg,
             emissiveIntensity: 0.08
           });
 
           const balloonMesh = new THREE.Mesh(sphereGeo, balloonMat);
-          balloonMesh.castShadow = true;
           balloonGroup.add(balloonMesh);
           balloonGroup.balloonMesh = balloonMesh;
 
-          // 2. Balloon Knot at Bottom
+          // Knot
           const knotGeo = new THREE.ConeGeometry(0.18, 0.28, 16);
           knotGeo.rotateX(Math.PI);
           const knotMat = new THREE.MeshStandardMaterial({ color: colorDef.bg, roughness: 0.3 });
           const knotMesh = new THREE.Mesh(knotGeo, knotMat);
-          knotMesh.position.y = -1.32;
+          knotMesh.position.y = -1.34;
           balloonGroup.add(knotMesh);
 
-          // 3. Balloon String (Thin cylinder)
+          // String
           const stringGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.6, 8);
           const stringMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
           const stringMesh = new THREE.Mesh(stringGeo, stringMat);
-          stringMesh.position.y = -2.15;
+          stringMesh.position.y = -2.18;
           balloonGroup.add(stringMesh);
 
-          // 4. Billboard Option Text Plane
+          // Label
           const labelTex = this.createBalloonLabelTexture(opt.key, opt.text, colorDef.hex);
           const labelMat = new THREE.MeshBasicMaterial({
             map: labelTex,
@@ -923,11 +959,11 @@
           });
           const labelGeo = new THREE.PlaneGeometry(2.4, 1.69);
           const labelMesh = new THREE.Mesh(labelGeo, labelMat);
-          labelMesh.position.set(0, -0.1, 1.06); // Attached on front of balloon
+          labelMesh.position.set(0, -0.1, 1.07);
           balloonGroup.add(labelMesh);
 
-          // 5. Invisible Hitbox Sphere for responsive raycasting & touches
-          const hitGeo = new THREE.SphereGeometry(1.4, 16, 16);
+          // Generous Hitbox for easy touch and hand pointing
+          const hitGeo = new THREE.SphereGeometry(1.55, 16, 16);
           const hitMat = new THREE.MeshBasicMaterial({ visible: false });
           const hitMesh = new THREE.Mesh(hitGeo, hitMat);
           hitMesh.isHitbox = true;
@@ -946,7 +982,6 @@
         this.balloons = [];
       }
 
-      // Burst Balloon with Confetti & 3D Rubber Shards
       popBalloon(balloonGroup) {
         if (!balloonGroup || balloonGroup.isPopped) return;
         balloonGroup.isPopped = true;
@@ -956,20 +991,19 @@
         const colorHex = balloonGroup.colorDef.bg;
         const origin = balloonGroup.position.clone();
 
-        // Remove balloon from scene
         this.scene.remove(balloonGroup);
         const bIdx = this.balloons.indexOf(balloonGroup);
         if (bIdx > -1) this.balloons.splice(bIdx, 1);
 
-        // Spawn 45+ 3D Particle Shards
-        const particleCount = 45;
+        // Explode 50 shards
+        const particleCount = 50;
         for (let i = 0; i < particleCount; i++) {
           const pGeo = Math.random() > 0.5 
-            ? new THREE.PlaneGeometry(0.12, 0.12)
-            : new THREE.BoxGeometry(0.08, 0.08, 0.08);
+            ? new THREE.PlaneGeometry(0.14, 0.14)
+            : new THREE.BoxGeometry(0.1, 0.1, 0.1);
 
           const pMat = new THREE.MeshBasicMaterial({
-            color: Math.random() > 0.3 ? colorHex : 0xffffff,
+            color: Math.random() > 0.25 ? colorHex : 0xffffff,
             side: THREE.DoubleSide
           });
 
@@ -979,10 +1013,9 @@
           pMesh.position.y += (Math.random() - 0.5) * 0.4;
           pMesh.position.z += (Math.random() - 0.5) * 0.4;
 
-          // Random burst velocities
           const angle = Math.random() * Math.PI * 2;
-          const speed = 3.5 + Math.random() * 5.0;
-          const upBias = 1.5 + Math.random() * 3.0;
+          const speed = 4.0 + Math.random() * 5.5;
+          const upBias = 2.0 + Math.random() * 3.5;
 
           pMesh.velocity = new THREE.Vector3(
             Math.cos(angle) * speed,
@@ -991,9 +1024,9 @@
           );
 
           pMesh.rotSpeed = new THREE.Vector3(
-            (Math.random() - 0.5) * 12,
-            (Math.random() - 0.5) * 12,
-            (Math.random() - 0.5) * 12
+            (Math.random() - 0.5) * 14,
+            (Math.random() - 0.5) * 14,
+            (Math.random() - 0.5) * 14
           );
 
           pMesh.life = 1.0;
@@ -1003,13 +1036,11 @@
           this.particles.push(pMesh);
         }
 
-        // Notify Game Controller
         if (window.game) {
           window.game.onAnswerSelected(balloonGroup.optionData);
         }
       }
 
-      // Check Raycast at Normalized Coordinates (-1 to 1)
       checkHit(normalizedX, normalizedY) {
         this.raycaster.setFromCamera(new THREE.Vector2(normalizedX, normalizedY), this.camera);
         const hitMeshes = [];
@@ -1026,7 +1057,6 @@
         return null;
       }
 
-      // Trigger pop directly at screen coordinate
       triggerPopAt(normalizedX, normalizedY) {
         const target = this.checkHit(normalizedX, normalizedY);
         if (target && !target.isPopped) {
@@ -1036,39 +1066,40 @@
         return false;
       }
 
-      // Update Loop
       animate() {
         requestAnimationFrame(() => this.animate());
 
         const delta = this.clock.getDelta();
         const elapsedTime = this.clock.getElapsedTime();
 
-        // 1. Floating & Bobbing of Balloons
+        // Rotate 3D pointer ring
+        if (this.arPointerMesh && this.arPointerMesh.visible) {
+          this.arPointerMesh.ring.rotation.z += 2.5 * delta;
+        }
+
+        // Bobbing balloons
         this.balloons.forEach(b => {
           if (b.isPopped) return;
 
-          // Smooth entrance float up
           if (b.position.y < b.targetY) {
             b.position.y += (b.targetY - b.position.y) * 4.0 * delta;
           } else {
-            // Gentle hovering wave
-            b.position.y = b.baseY + Math.sin(elapsedTime * b.floatSpeed + b.floatOffset) * 0.18;
+            b.position.y = b.baseY + Math.sin(elapsedTime * b.floatSpeed + b.floatOffset) * 0.16;
             b.position.x = b.baseX + Math.cos(elapsedTime * 0.8 + b.floatOffset) * 0.08;
             b.rotation.z = Math.sin(elapsedTime * 1.1 + b.floatOffset) * 0.05;
             b.rotation.y = Math.sin(elapsedTime * 0.6 + b.floatOffset) * 0.08;
           }
 
-          // Gentle scale reaction when hovered
           if (b === this.hoveredBalloon) {
-            b.scale.lerp(new THREE.Vector3(1.1, 1.1, 1.1), 0.15);
-            b.balloonMesh.material.emissiveIntensity = 0.35;
+            b.scale.lerp(new THREE.Vector3(1.15, 1.15, 1.15), 0.2);
+            b.balloonMesh.material.emissiveIntensity = 0.45;
           } else {
-            b.scale.lerp(new THREE.Vector3(1.0, 1.0, 1.0), 0.15);
+            b.scale.lerp(new THREE.Vector3(1.0, 1.0, 1.0), 0.2);
             b.balloonMesh.material.emissiveIntensity = 0.08;
           }
         });
 
-        // 2. Animate Particles
+        // Animate particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
           const p = this.particles[i];
           p.life -= p.decay * delta;
@@ -1079,7 +1110,6 @@
             continue;
           }
 
-          // Physics: gravity & velocity
           p.velocity.y -= 9.8 * delta;
           p.position.addScaledVector(p.velocity, delta);
           p.rotation.x += p.rotSpeed.x * delta;
@@ -1092,7 +1122,7 @@
       }
     }
 
-    // --- 4. AR WEBCAM & MEDIAPIPE HANDS TRACKER ---
+    // --- 4. ROBUST AR WEBCAM & MEDIAPIPE HANDS TRACKER ---
     class ARHandTracker {
       constructor(onHandFrameCallback) {
         this.video = document.getElementById('webcam');
@@ -1101,12 +1131,16 @@
         this.onHandFrame = onHandFrameCallback;
 
         this.hands = null;
-        this.camera = null;
         this.isCameraActive = false;
-        this.isDetecting = false;
+        this.isProcessingFrame = false;
+        this.animFrameId = null;
 
-        this.handPos = { x: -1, y: -1, isDetected: false, isPinching: false, pinchDist: 1.0 };
+        this.handPos = {
+          x: -1, y: -1, normX: 0, normY: 0,
+          isDetected: false, isPinching: false, pinchDist: 1.0
+        };
         this.hoverProgress = 0;
+        this.lastHandTimestamp = 0;
 
         this.initCanvasSize();
         window.addEventListener('resize', () => this.initCanvasSize());
@@ -1117,36 +1151,77 @@
         this.handCanvas.height = window.innerHeight;
       }
 
-      async start() {
-        const statusLight = document.getElementById('tracking-status-light');
-        const statusText = document.getElementById('tracking-status-text');
-        const handText = document.getElementById('hand-indicator-text');
+      setSimulatedPointer(clientX, clientY) {
+        if (this.handPos.isDetected) return;
 
-        // Check MediaPipe availability
+        const normX = (clientX / window.innerWidth) * 2 - 1;
+        const normY = -(clientY / window.innerHeight) * 2 + 1;
+
+        const simulatedHand = {
+          x: clientX,
+          y: clientY,
+          normX: normX,
+          normY: normY,
+          isDetected: false,
+          isCursor: true,
+          isPinching: false,
+          pinchDist: 100
+        };
+
+        this.ctx.clearRect(0, 0, this.handCanvas.width, this.handCanvas.height);
+        this.renderTargetReticle(clientX, clientY, 22, '#38bdf8', false);
+
+        if (this.onHandFrame) {
+          this.onHandFrame(simulatedHand);
+        }
+      }
+
+      async initMediaPipe() {
+        if (this.hands) return true;
+
         if (typeof Hands === 'undefined') {
-          console.warn("MediaPipe Hands library not loaded. Falling back to mouse/touch interaction.");
-          if (statusText) statusText.innerText = "Mod Sentuh / Tetikus Aktif";
-          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+          console.warn("Pustaka MediaPipe Hands belum sedia.");
           return false;
         }
 
         try {
-          if (statusText) statusText.innerText = "Meminta Kebenaran Kamera...";
-          
           this.hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
           });
 
           this.hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.55,
+            minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
           });
 
           this.hands.onResults((results) => this.onResults(results));
+          await this.hands.initialize();
+          console.log("MediaPipe Hands diinisialisasi sepenuhnya!");
+          return true;
+        } catch (err) {
+          console.error("Gagal initialize MediaPipe Hands:", err);
+          return false;
+        }
+      }
 
-          // Start Camera
+      async start() {
+        const statusLight = document.getElementById('tracking-status-light');
+        const statusText = document.getElementById('tracking-status-text');
+        const handText = document.getElementById('hand-indicator-text');
+        const retryBtn = document.getElementById('btn-cam-retry');
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          this.showError("Pelayar web ini tidak membenarkan akses getUserMedia.", "unsupported");
+          return false;
+        }
+
+        try {
+          if (statusText) statusText.innerText = "Meminta Kebenaran Kamera...";
+          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+
+          // Start camera stream
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: "user",
@@ -1157,156 +1232,318 @@
           });
 
           this.video.srcObject = stream;
-          await this.video.play();
+
+          await new Promise((resolve, reject) => {
+            this.video.onloadedmetadata = () => {
+              this.video.play().then(resolve).catch(reject);
+            };
+          });
 
           this.isCameraActive = true;
           this.video.classList.remove('opacity-0');
           this.video.classList.add('opacity-100');
-          document.getElementById('virtual-bg').classList.add('opacity-40');
+          document.getElementById('virtual-bg').classList.add('opacity-0');
 
-          if (typeof Camera !== 'undefined') {
-            this.camera = new Camera(this.video, {
-              onFrame: async () => {
-                if (this.isCameraActive) {
-                  await this.hands.send({ image: this.video });
-                }
-              },
-              width: 1280,
-              height: 720
-            });
-            this.camera.start();
-          } else {
-            // Manual loop if Camera helper not loaded
-            const processLoop = async () => {
-              if (this.isCameraActive) {
-                await this.hands.send({ image: this.video });
-                requestAnimationFrame(processLoop);
-              }
-            };
-            requestAnimationFrame(processLoop);
-          }
+          // Initialize AI model
+          if (statusText) statusText.innerText = "Memuat Turun Model AI...";
+          await this.initMediaPipe();
 
-          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
-          if (statusText) statusText.innerText = "Kamera AR Aktif • Tangan Dikesan";
-          if (handText) handText.innerText = "Kamera Aktif: Tuding jari telunjuk atau cubit untuk letupkan belon";
+          if (retryBtn) retryBtn.classList.add('hidden');
+          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse";
+          if (statusText) statusText.innerText = "Kamera Aktif • Menunggu Tangan 🖐️";
+          if (handText) handText.innerText = "Kamera Aktif: Angkat tangan ke arah kamera dan tuding jari telunjuk";
 
+          this.startDetectionLoop();
+          this.updateDiagnosticInfo();
           return true;
         } catch (err) {
-          console.warn("Kamera tidak dapat diakses atau ditolak:", err);
-          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
-          if (statusText) statusText.innerText = "Mod Sentuh/Tetikus (Kamera Luar Talian)";
-          if (handText) handText.innerText = "Kamera ditutup: Anda boleh klik atau sentuh belon terus";
+          console.error("Ralat Kamera / AR:", err);
+          let userMsg = "Kamera tidak dapat diakses. Mod Tetikus/Sentuh diaktifkan!";
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            userMsg = "Kebenaran kamera ditolak. Sila benarkan (Allow) kamera di palang URL pelayar.";
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            userMsg = "Tiada webcam ditemui pada peranti anda. Sila main menggunakan tetikus.";
+          }
+          this.showError(userMsg, err.name);
           return false;
         }
       }
 
+      startDetectionLoop() {
+        if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+
+        const loop = async () => {
+          if (!this.isCameraActive) return;
+
+          if (this.video.readyState >= 2 && !this.isProcessingFrame && this.hands) {
+            this.isProcessingFrame = true;
+            try {
+              await this.hands.send({ image: this.video });
+            } catch (frameErr) {
+              console.warn("MediaPipe frame send error:", frameErr);
+            }
+            this.isProcessingFrame = false;
+          }
+
+          // Timeout check: if no hand seen in last 0.8s, clear detection
+          if (this.handPos.isDetected && (Date.now() - this.lastHandTimestamp > 800)) {
+            this.handPos.isDetected = false;
+            const statusLight = document.getElementById('tracking-status-light');
+            const statusText = document.getElementById('tracking-status-text');
+            if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse";
+            if (statusText) statusText.innerText = "Kamera Aktif • Menunggu Tangan 🖐️";
+            this.ctx.clearRect(0, 0, this.handCanvas.width, this.handCanvas.height);
+            if (window.game && window.game.arScene) {
+              window.game.arScene.hide3DPointer();
+            }
+          }
+
+          this.animFrameId = requestAnimationFrame(loop);
+        };
+
+        this.animFrameId = requestAnimationFrame(loop);
+      }
+
       stop() {
         this.isCameraActive = false;
+        if (this.animFrameId) {
+          cancelAnimationFrame(this.animFrameId);
+          this.animFrameId = null;
+        }
         if (this.video && this.video.srcObject) {
           this.video.srcObject.getTracks().forEach(track => track.stop());
           this.video.srcObject = null;
         }
         this.video.classList.remove('opacity-100');
         this.video.classList.add('opacity-0');
-        document.getElementById('virtual-bg').classList.remove('opacity-40');
+        document.getElementById('virtual-bg').classList.remove('opacity-0');
 
         const statusLight = document.getElementById('tracking-status-light');
         const statusText = document.getElementById('tracking-status-text');
+        const handText = document.getElementById('hand-indicator-text');
+        const retryBtn = document.getElementById('btn-cam-retry');
+
         if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-slate-500";
         if (statusText) statusText.innerText = "Kamera Ditutup (Mod Tetikus/Sentuh)";
+        if (handText) handText.innerText = "Mod Tetikus: Klik atau sentuh belon jawapan untuk meletupkannya";
+        if (retryBtn) retryBtn.classList.remove('hidden');
+
+        this.ctx.clearRect(0, 0, this.handCanvas.width, this.handCanvas.height);
+        if (window.game && window.game.arScene) {
+          window.game.arScene.hide3DPointer();
+        }
+        this.updateDiagnosticInfo();
+      }
+
+      showError(msg, errType) {
+        const statusLight = document.getElementById('tracking-status-light');
+        const statusText = document.getElementById('tracking-status-text');
+        const handText = document.getElementById('hand-indicator-text');
+        const retryBtn = document.getElementById('btn-cam-retry');
+
+        if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+        if (statusText) statusText.innerText = "Mod Tetikus (Kamera Tidak Aktif)";
+        if (handText) handText.innerText = msg;
+        if (retryBtn) retryBtn.classList.remove('hidden');
+
+        this.updateDiagnosticInfo();
+      }
+
+      // Map raw video coordinates to actual screen coordinates accounting for object-fit: cover
+      mapVideoToScreen(landmarkX, landmarkY) {
+        const screenW = this.handCanvas.width;
+        const screenH = this.handCanvas.height;
+        const videoW = this.video.videoWidth || 1280;
+        const videoH = this.video.videoHeight || 720;
+
+        const videoAspect = videoW / videoH;
+        const screenAspect = screenW / screenH;
+
+        let renderW, renderH, offsetX, offsetY;
+        if (screenAspect > videoAspect) {
+          renderW = screenW;
+          renderH = screenW / videoAspect;
+          offsetX = 0;
+          offsetY = (screenH - renderH) / 2;
+        } else {
+          renderH = screenH;
+          renderW = screenH * videoAspect;
+          offsetX = (screenW - renderW) / 2;
+          offsetY = 0;
+        }
+
+        // Mirrored horizontally: (1 - landmarkX)
+        const x = offsetX + (1 - landmarkX) * renderW;
+        const y = offsetY + landmarkY * renderH;
+
+        return { x, y };
       }
 
       onResults(results) {
         this.ctx.clearRect(0, 0, this.handCanvas.width, this.handCanvas.height);
 
+        const statusLight = document.getElementById('tracking-status-light');
+        const statusText = document.getElementById('tracking-status-text');
+        const handText = document.getElementById('hand-indicator-text');
+        const diagHand = document.getElementById('diag-hand-count');
+
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-          this.isDetecting = true;
+          this.lastHandTimestamp = Date.now();
           const landmarks = results.multiHandLandmarks[0];
 
-          // Landmark 8 = Index Finger Tip, Landmark 4 = Thumb Tip
-          const indexTip = landmarks[8];
-          const thumbTip = landmarks[4];
+          // Landmark 8 = Index Tip, Landmark 4 = Thumb Tip
+          const indexPoint = this.mapVideoToScreen(landmarks[8].x, landmarks[8].y);
+          const thumbPoint = this.mapVideoToScreen(landmarks[4].x, landmarks[4].y);
 
-          // Because camera is mirrored (scaleX(-1)), map X as (1 - x)
-          const screenX = (1 - indexTip.x) * this.handCanvas.width;
-          const screenY = indexTip.y * this.handCanvas.height;
+          const screenW = this.handCanvas.width;
+          const screenH = this.handCanvas.height;
 
-          const thumbX = (1 - thumbTip.x) * this.handCanvas.width;
-          const thumbY = thumbTip.y * this.handCanvas.height;
-
-          // Pinch distance (distance between thumb and index tip in pixel space)
-          const dx = screenX - thumbX;
-          const dy = screenY - thumbY;
+          // Pinch distance in pixels
+          const dx = indexPoint.x - thumbPoint.x;
+          const dy = indexPoint.y - thumbPoint.y;
           const distPx = Math.sqrt(dx * dx + dy * dy);
-          const isPinching = distPx < 55; // Threshold for pinch gesture
+          const isPinching = distPx < 65;
+
+          const normX = (indexPoint.x / screenW) * 2 - 1;
+          const normY = -(indexPoint.y / screenH) * 2 + 1;
 
           this.handPos = {
-            x: screenX,
-            y: screenY,
-            normX: (screenX / this.handCanvas.width) * 2 - 1,
-            normY: -(screenY / this.handCanvas.height) * 2 + 1,
+            x: indexPoint.x,
+            y: indexPoint.y,
+            normX: normX,
+            normY: normY,
             isDetected: true,
+            isCursor: false,
             isPinching: isPinching,
-            pinchDist: distPx
+            pinchDist: distPx,
+            rawLandmarks: landmarks
           };
 
-          // Draw AR Futuristic Hand Skeleton & Target Reticle
-          this.renderARReticle(screenX, screenY, thumbX, thumbY, isPinching);
+          // 1. Render Full AR Neon Hand Skeleton
+          this.renderFullNeonSkeleton(landmarks);
 
-          // Pass to game callback
+          // 2. Render High-Visibility Reticle at Index Tip
+          const reticleColor = isPinching ? '#38bdf8' : (this.hoverProgress > 0 ? '#10b981' : '#00f0ff');
+          this.renderTargetReticle(indexPoint.x, indexPoint.y, 28, reticleColor, isPinching);
+
+          // 3. Render Thumb Indicator & Pinch Laser Line
+          this.renderPinchLaser(indexPoint.x, indexPoint.y, thumbPoint.x, thumbPoint.y, isPinching);
+
+          // Update HUD Status
+          if (statusLight) statusLight.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping";
+          if (statusText) statusText.innerText = "Tangan Dikesan! (Gerakkan Jari Anda) ✨";
+          if (handText) handText.innerText = isPinching ? "Isyarat Cubit (Pinch) Aktif! Belon Meletup!" : "Tuding jari pada belon atau cubit untuk meletupkannya!";
+          if (diagHand) diagHand.innerText = `1 Tangan (Jari: ${Math.round(indexPoint.x)}, ${Math.round(indexPoint.y)})`;
+
+          // Update 3D Pointer in Three.js
+          if (window.game && window.game.arScene) {
+            window.game.arScene.update3DPointerPosition(normX, normY);
+          }
+
           if (this.onHandFrame) {
             this.onHandFrame(this.handPos);
           }
-
         } else {
-          this.isDetecting = false;
-          this.handPos.isDetected = false;
-          if (this.onHandFrame) {
-            this.onHandFrame(this.handPos);
-          }
+          if (diagHand) diagHand.innerText = "Tiada tangan dikesan";
         }
       }
 
-      renderARReticle(ix, iy, tx, ty, isPinching) {
+      renderFullNeonSkeleton(landmarks) {
         const ctx = this.ctx;
+        const connections = [
+          // Thumb
+          [0, 1], [1, 2], [2, 3], [3, 4],
+          // Index
+          [0, 5], [5, 6], [6, 7], [7, 8],
+          // Middle
+          [9, 10], [10, 11], [11, 12],
+          // Ring
+          [13, 14], [14, 15], [15, 16],
+          // Pinky
+          [0, 17], [17, 18], [18, 19], [19, 20],
+          // Palm
+          [5, 9], [9, 13], [13, 17]
+        ];
 
-        // Line connecting Thumb and Index Tip
-        ctx.strokeStyle = isPinching ? 'rgba(56, 189, 248, 0.9)' : 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = isPinching ? 4 : 2;
+        // Draw neon bones
+        ctx.save();
+        ctx.shadowColor = '#06b6d4';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.85)';
+        ctx.lineWidth = 4;
+
+        connections.forEach(([p1, p2]) => {
+          const pt1 = this.mapVideoToScreen(landmarks[p1].x, landmarks[p1].y);
+          const pt2 = this.mapVideoToScreen(landmarks[p2].x, landmarks[p2].y);
+          ctx.beginPath();
+          ctx.moveTo(pt1.x, pt1.y);
+          ctx.lineTo(pt2.x, pt2.y);
+          ctx.stroke();
+        });
+
+        // Draw joints
+        landmarks.forEach((pt, idx) => {
+          const p = this.mapVideoToScreen(pt.x, pt.y);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, idx === 8 || idx === 4 ? 7 : 4, 0, Math.PI * 2);
+          if (idx === 8) {
+            ctx.fillStyle = '#10b981';
+            ctx.shadowColor = '#10b981';
+          } else if (idx === 4) {
+            ctx.fillStyle = '#ec4899';
+            ctx.shadowColor = '#ec4899';
+          } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#06b6d4';
+          }
+          ctx.fill();
+        });
+
+        ctx.restore();
+      }
+
+      renderPinchLaser(ix, iy, tx, ty, isPinching) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.strokeStyle = isPinching ? '#38bdf8' : 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = isPinching ? 5 : 2;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(ix, iy);
         ctx.lineTo(tx, ty);
         ctx.stroke();
-        ctx.setLineDash([]);
 
-        // Thumb Indicator
-        ctx.fillStyle = 'rgba(244, 114, 182, 0.8)';
+        // Thumb Dot
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#ec4899';
         ctx.beginPath();
         ctx.arc(tx, ty, 8, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+      }
 
-        // Index Finger Outer Target Reticle
+      renderTargetReticle(x, y, r, color, isPinching) {
+        const ctx = this.ctx;
         ctx.save();
-        ctx.translate(ix, iy);
+        ctx.translate(x, y);
 
-        // Pulsing / Rotating Reticle Circle
-        const color = isPinching ? '#38bdf8' : (this.hoverProgress > 0 ? '#34d399' : '#ffffff');
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14;
         ctx.strokeStyle = color;
-        ctx.lineWidth = isPinching ? 4 : 2.5;
+        ctx.lineWidth = 3.5;
 
-        // Outer Reticle Brackets
-        const r = 24;
+        // Outer Target Ring
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.stroke();
 
         // Crosshairs
+        const l = 8;
         ctx.beginPath();
-        ctx.moveTo(-r - 8, 0); ctx.lineTo(-r + 4, 0);
-        ctx.moveTo(r - 4, 0); ctx.lineTo(r + 8, 0);
-        ctx.moveTo(0, -r - 8); ctx.lineTo(0, -r + 4);
-        ctx.moveTo(0, r - 4); ctx.lineTo(0, r + 8);
+        ctx.moveTo(-r - l, 0); ctx.lineTo(-r + 4, 0);
+        ctx.moveTo(r - 4, 0); ctx.lineTo(r + l, 0);
+        ctx.moveTo(0, -r - l); ctx.lineTo(0, -r + 4);
+        ctx.moveTo(0, r - 4); ctx.lineTo(0, r + l);
         ctx.stroke();
 
         // Center dot
@@ -1315,24 +1552,65 @@
         ctx.arc(0, 0, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Progress ring if hovering on balloon
+        // Progress ring on hover
         if (this.hoverProgress > 0) {
+          ctx.shadowBlur = 18;
+          ctx.shadowColor = '#10b981';
           ctx.strokeStyle = '#10b981';
-          ctx.lineWidth = 5;
+          ctx.lineWidth = 6;
           ctx.beginPath();
-          ctx.arc(0, 0, r + 6, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * this.hoverProgress));
+          ctx.arc(0, 0, r + 7, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * this.hoverProgress));
           ctx.stroke();
         }
 
-        // Pinching Label
         if (isPinching) {
           ctx.fillStyle = '#38bdf8';
-          ctx.font = 'bold 12px "Fredoka", sans-serif';
+          ctx.font = 'bold 13px "Fredoka", sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText("PINCH POP!", 0, -r - 14);
         }
 
         ctx.restore();
+      }
+
+      updateDiagnosticInfo() {
+        const protoEl = document.getElementById('diag-protocol');
+        const gumEl = document.getElementById('diag-getusermedia');
+        const camEl = document.getElementById('diag-camera-status');
+        const mpEl = document.getElementById('diag-mediapipe');
+        const vidEl = document.getElementById('diag-video-dim');
+
+        if (protoEl) {
+          protoEl.innerText = window.location.protocol;
+          protoEl.className = window.location.protocol === 'file:' ? "font-mono px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-bold" : "font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold";
+        }
+
+        if (gumEl) {
+          const supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+          gumEl.innerText = supported ? "Disokong" : "Tidak Disokong";
+          gumEl.className = supported ? "font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold" : "font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-bold";
+        }
+
+        if (camEl) {
+          camEl.innerText = this.isCameraActive ? "Aktif & Mengalir" : "Tidak Aktif";
+          camEl.className = this.isCameraActive ? "font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold" : "font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400";
+        }
+
+        if (mpEl) {
+          const mpLoaded = typeof Hands !== 'undefined';
+          mpEl.innerText = mpLoaded ? "Pustaka Sedia (Loaded)" : "Gagal / Tiada Internet";
+          mpEl.className = mpLoaded ? "font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold" : "font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-bold";
+        }
+
+        if (vidEl) {
+          if (this.isCameraActive && this.video.videoWidth) {
+            vidEl.innerText = `${this.video.videoWidth} x ${this.video.videoHeight} px`;
+            vidEl.className = "font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300";
+          } else {
+            vidEl.innerText = "Tiada Suapan Video";
+            vidEl.className = "font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400";
+          }
+        }
       }
     }
 
@@ -1388,11 +1666,32 @@
           }
         });
 
+        // Camera Retry Button on Bottom HUD
+        document.getElementById('btn-cam-retry').addEventListener('click', async () => {
+          await this.handTracker.start();
+        });
+
         // Sound Toggle Button
         document.getElementById('btn-toggle-sound').addEventListener('click', () => {
           sound.init();
           const active = sound.toggle();
           document.getElementById('btn-toggle-sound').innerText = active ? '🔊' : '🔇';
+        });
+
+        // Diagnostics Modal Buttons
+        document.getElementById('btn-show-diag').addEventListener('click', () => {
+          this.handTracker.updateDiagnosticInfo();
+          document.getElementById('diag-modal').classList.remove('opacity-0', 'pointer-events-none');
+        });
+        document.getElementById('btn-close-diag').addEventListener('click', () => {
+          document.getElementById('diag-modal').classList.add('opacity-0', 'pointer-events-none');
+        });
+        document.getElementById('btn-diag-ok').addEventListener('click', () => {
+          document.getElementById('diag-modal').classList.add('opacity-0', 'pointer-events-none');
+        });
+        document.getElementById('btn-diag-retry').addEventListener('click', async () => {
+          document.getElementById('diag-modal').classList.add('opacity-0', 'pointer-events-none');
+          await this.handTracker.start();
         });
 
         // Guide Modal Buttons
@@ -1405,6 +1704,15 @@
         document.getElementById('btn-guide-ok').addEventListener('click', () => {
           document.getElementById('guide-modal').classList.add('opacity-0', 'pointer-events-none');
         });
+
+        // Spacebar shortcut to simulate pop
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space') {
+            if (this.arScene.hoveredBalloon) {
+              this.arScene.popBalloon(this.arScene.hoveredBalloon);
+            }
+          }
+        });
       }
 
       loadQuestion(idx) {
@@ -1412,42 +1720,38 @@
         this.isAnsweringLocked = false;
         const q = QUESTIONS_DATA[idx];
 
-        // Update Question UI Cards
         document.getElementById('question-category').innerHTML = `${q.levelIcon} ${q.levelBadge}`;
         document.getElementById('badge-level').innerText = `Aras ${q.id}`;
-        document.getElementById('question-number').innerText = `Soalan ${idx + 1} daripada ${QUESTIONS_DATA.length}`;
+        document.getElementById('question-number').innerText = `Soalan ${idx + 1} / ${QUESTIONS_DATA.length}`;
         document.getElementById('question-text').innerText = q.question;
 
-        // Update Step Dots
         for (let i = 1; i <= 5; i++) {
           const dot = document.getElementById(`dot-${i}`);
-          if (i <= idx + 1) {
-            dot.className = "w-7 h-2 rounded-full bg-emerald-400 transition-all duration-300";
-          } else {
-            dot.className = "w-7 h-2 rounded-full bg-slate-700 transition-all duration-300";
+          if (dot) {
+            dot.className = i <= idx + 1 
+              ? "w-5 h-2 rounded-full bg-emerald-400 transition-all" 
+              : "w-5 h-2 rounded-full bg-slate-700 transition-all";
           }
         }
 
-        // Spawn 3D Balloons for this question
         this.arScene.spawnBalloons(q);
       }
 
-      // Hand update callback from ARHandTracker
       onHandUpdate(hand) {
-        if (!hand.isDetected || this.isAnsweringLocked) {
+        if (this.isAnsweringLocked) {
           this.arScene.hoveredBalloon = null;
           this.arScene.hoverTimer = 0;
           this.handTracker.hoverProgress = 0;
           return;
         }
 
-        // Raycast against balloons using normalized coordinates
+        // Raycast against balloons
         const target = this.arScene.checkHit(hand.normX, hand.normY);
 
         if (target) {
           this.arScene.hoveredBalloon = target;
 
-          // 1. Check Pinch Gesture -> Instant Pop!
+          // Pinch Gesture -> Instant Pop
           if (hand.isPinching) {
             this.arScene.popBalloon(target);
             this.arScene.hoverTimer = 0;
@@ -1455,8 +1759,8 @@
             return;
           }
 
-          // 2. Check Dwell / Hover Timer
-          this.arScene.hoverTimer += 0.016; // approx 60fps delta
+          // Dwell / Hover timer
+          this.arScene.hoverTimer += 0.016;
           const progress = Math.min(this.arScene.hoverTimer / this.arScene.hoverDurationNeeded, 1.0);
           this.handTracker.hoverProgress = progress;
 
@@ -1503,17 +1807,16 @@
         const expText = document.getElementById('feedback-explanation');
 
         if (isCorrect) {
-          iconBox.className = "w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-4xl mb-4 shadow-xl border bg-emerald-500/20 border-emerald-400 text-emerald-300";
+          iconBox.className = "w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl flex items-center justify-center text-3xl sm:text-4xl mb-3 sm:mb-4 shadow-xl border bg-emerald-500/20 border-emerald-400 text-emerald-300";
           iconBox.innerHTML = "🎯";
           statusText.className = "text-xs font-bold uppercase tracking-widest text-emerald-400 mb-1";
           statusText.innerText = "Jawapan Tepat! (+100 Markah)";
           titleText.innerText = `Pilihan [${optionData.key}] Adalah Tepat!`;
         } else {
-          iconBox.className = "w-20 h-20 mx-auto rounded-3xl flex items-center justify-center text-4xl mb-4 shadow-xl border bg-rose-500/20 border-rose-400 text-rose-300";
+          iconBox.className = "w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl flex items-center justify-center text-3xl sm:text-4xl mb-3 sm:mb-4 shadow-xl border bg-rose-500/20 border-rose-400 text-rose-300";
           iconBox.innerHTML = "💡";
           statusText.className = "text-xs font-bold uppercase tracking-widest text-rose-400 mb-1";
           statusText.innerText = "Kurang Tepat, Mari Belajar!";
-          // Find correct option key
           const correctOpt = questionData.options.find(o => o.isCorrect);
           titleText.innerText = `Jawapan Sebenar: [${correctOpt ? correctOpt.key : ''}] ${correctOpt ? correctOpt.text : ''}`;
         }
@@ -1552,7 +1855,6 @@
       }
     }
 
-    // Initialize Game on page load
     window.addEventListener('DOMContentLoaded', () => {
       window.game = new GameController();
     });
